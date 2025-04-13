@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /leaderboard/{document} {
+      allow read: if true; // Allow everyone to read scores
+      allow write, update: if request.auth != null; // Allow logged-in users to write or update their data
+    }
+  }
+}
