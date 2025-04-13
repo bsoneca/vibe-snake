@@ -10,12 +10,12 @@ import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from
 
 // Move Firebase configuration to environment variables
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -396,7 +396,7 @@ function showGameOverMessage(reason) {
   clearGameplayArea(); // Clear the gameplay area
   const gameOverMessage = document.createElement('div');
   gameOverMessage.id = 'game-over-message';
-  gameOverMessage.textContent = `${translations[currentLanguage].gameOver} ${reason}`;
+  gameOverMessage.textContent = `${translations[currentLanguage].gameOver}`; // Removed reason
   gameOverMessage.style.position = 'absolute';
   gameOverMessage.style.top = '40%';
   gameOverMessage.style.left = '50%';
@@ -472,6 +472,30 @@ function update() {
   if (isGameOver) return; // Skip updates if the game is over
 
   const head = { x: snake[0].x + direction.x * gridSize, y: snake[0].y + direction.y * gridSize };
+
+  // Check if the snake hits the wall
+  if (
+    head.x < wallThickness ||
+    head.y < wallThickness ||
+    head.x >= canvas.width - wallThickness ||
+    head.y >= canvas.height - wallThickness
+  ) {
+    showGameOverMessage(); // Trigger game over
+    return;
+  }
+
+  // Check if the snake hits the yellow snake
+  if (yellowSnake && yellowSnake.segments.some(segment => segment.x === head.x && segment.y === head.y)) {
+    showGameOverMessage(); // Trigger game over
+    return;
+  }
+
+  // Check if the snake hits a bomb
+  if (specialItemType === 'bomb' && specialItem && head.x === specialItem.x && head.y === specialItem.y) {
+    showGameOverMessage(); // Trigger game over
+    return;
+  }
+
   snake.unshift(head);
 
   lastDirection = { ...direction }; // Update the last direction after moving
@@ -480,37 +504,6 @@ function update() {
     spawnFoodWithinWalls();
     counter++;
     counterElement.innerHTML = `count is ${counter}`;
-  } else if (specialItem && head.x === specialItem.x && head.y === specialItem.y) {
-    if (specialItemType === 'greenApple') {
-      specialItem = null; // Remove the special item
-      clearTimeout(specialItemTimeout); // Clear the timeout
-      counter += 10; // Add 10 points
-      counterElement.innerHTML = `count is ${counter}`;
-
-      // Grow the snake by 3 segments
-      for (let i = 0; i < 3; i++) {
-        snake.push({ ...snake[snake.length - 1] });
-      }
-    } else if (specialItemType === 'bomb') {
-      showGameOverMessage('You hit a bomb!'); // End the game if the bomb is hit
-      const topScore = Math.max(counter, localStorage.getItem('topScore') || 0);
-      localStorage.setItem('topScore', topScore);
-      updateLeaderboardOnGameOver(counter);
-      snake = [{ x: 200, y: 200 }];
-      direction = { x: 0, y: 0 };
-      counter = 0;
-      counterElement.innerHTML = `count is ${counter}`;
-    } else if (specialItemType === 'altApple') {
-      specialItem = null; // Remove the special item
-      clearTimeout(specialItemTimeout); // Clear the timeout
-      counter = Math.max(0, counter - 1); // Subtract 1 point, but not below 0
-      counterElement.innerHTML = `count is ${counter}`;
-
-      // Shrink the snake by 1 segment if it has more than 1 segment
-      if (snake.length > 1) {
-        snake.pop();
-      }
-    }
   } else {
     snake.pop();
   }
@@ -532,41 +525,6 @@ function update() {
     while (yellowSnake.segments.length > targetSize) {
       yellowSnake.segments.pop();
     }
-  }
-
-  // Check if the green snake collides with the yellow snake
-  if (yellowSnake && yellowSnake.segments) {
-    if (yellowSnake.segments.some(segment => segment.x === head.x && segment.y === head.y)) {
-      showGameOverMessage('You collided with the yellow snake!'); // End the game if the green snake hits the yellow snake
-      const topScore = Math.max(counter, localStorage.getItem('topScore') || 0);
-      localStorage.setItem('topScore', topScore);
-      updateLeaderboardOnGameOver(counter);
-      snake = [{ x: 200, y: 200 }];
-      direction = { x: 0, y: 0 };
-      counter = 0;
-      counterElement.innerHTML = `count is ${counter}`;
-      return; // Stop further updates
-    }
-  }
-
-  if (head.x < wallThickness || head.y < wallThickness || head.x >= canvas.width - wallThickness || head.y >= canvas.height - wallThickness) {
-    showGameOverMessage('You hit the wall!');
-    const topScore = Math.max(counter, localStorage.getItem('topScore') || 0);
-    localStorage.setItem('topScore', topScore);
-    updateLeaderboardOnGameOver(counter);
-    snake = [{ x: 200, y: 200 }];
-    direction = { x: 0, y: 0 };
-    counter = 0;
-    counterElement.innerHTML = `count is ${counter}`;
-  } else if (snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
-    showGameOverMessage('You collided with yourself!');
-    const topScore = Math.max(counter, localStorage.getItem('topScore') || 0);
-    localStorage.setItem('topScore', topScore);
-    updateLeaderboardOnGameOver(counter);
-    snake = [{ x: 200, y: 200 }];
-    direction = { x: 0, y: 0 };
-    counter = 0;
-    counterElement.innerHTML = `count is ${counter}`;
   }
 }
 
